@@ -35,15 +35,19 @@ func main() {
 
 	cron := gocron.NewScheduler(time.UTC)
 
-	logger.Infof("started cron. interval: %s", conf.Pinger.Interval.String())
-	_, err = cron.Every(conf.Pinger.Interval).Do(func() {
-		logger.Debug("started ping")
-		pingClient.Ping()
-	})
-	if err != nil {
-		logger.Fatalf("failed to start cron. err: %s", err.Error())
+	for _, ac := range conf.Pinger.Addresses {
+		logger.Debug(ac)
+		logger.Infof("started cron. interval: %s", ac.Interval.String())
+		_, err = cron.Every(ac.Interval).Do(func(ac config.AddressesConfig) {
+			logger.Debug("started ping")
+			pingClient.Ping(ac.List)
+		}, ac)
+		if err != nil {
+			logger.Fatalf("failed to start cron. err: %s", err.Error())
+		}
 	}
 
+	logger.Debug("jobs ", len(cron.Jobs()))
 	cron.StartAsync()
 
 	quit := make(chan os.Signal, 1)
@@ -51,6 +55,7 @@ func main() {
 
 	<-quit
 
+	cron.Clear()
 	cron.Stop()
 
 	const timeout = 5 * time.Second

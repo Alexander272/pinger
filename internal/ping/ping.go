@@ -22,8 +22,8 @@ func NewPingClient(conf *config.PingerConfig, bot bot.MostBot) *PingClient {
 	}
 }
 
-func (c *PingClient) Ping() {
-	for _, addr := range c.conf.Addresses {
+func (c *PingClient) Ping(addresses []string) {
+	for _, addr := range addresses {
 		go c.checkPing(addr)
 	}
 }
@@ -41,7 +41,7 @@ func (c *PingClient) checkPing(addr string) {
 		}
 	}
 	pinger.Count = 5
-	pinger.Timeout = 5 * time.Second
+	pinger.Timeout = time.Second
 
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
