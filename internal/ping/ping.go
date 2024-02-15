@@ -2,7 +2,6 @@ package ping
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/Alexander272/Pinger/internal/bot"
 	"github.com/Alexander272/Pinger/internal/config"
@@ -40,8 +39,28 @@ func (c *PingClient) checkPing(addr string) {
 			logger.Errorf("failed to send message. error: %s", err.Error())
 		}
 	}
-	pinger.Count = 5
-	pinger.Timeout = time.Second
+
+	pinger.Count = c.conf.Count
+	pinger.Interval = c.conf.Interval
+	pinger.Timeout = c.conf.Timeout
+
+	pinger.OnRecv = func(pkt *probing.Packet) {
+		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v\n",
+			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt)
+	}
+
+	pinger.OnDuplicateRecv = func(pkt *probing.Packet) {
+		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v (DUP!)\n",
+			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
+	}
+
+	pinger.OnFinish = func(stats *probing.Statistics) {
+		fmt.Printf("\n---%s to %s ping statistics ---\n", c.conf.IP, stats.Addr)
+		fmt.Printf("%d packets transmitted, %d packets received, %v%% packet loss\n",
+			stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss)
+		fmt.Printf("round-trip min/avg/max/stddev = %v/%v/%v/%v\n",
+			stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt)
+	}
 
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
@@ -55,6 +74,16 @@ func (c *PingClient) checkPing(addr string) {
 
 	stats := pinger.Statistics()
 
+	// 	logger.Debug(
+	// 		fmt.Sprintf(`
+	// --- %s ping statistics ---
+	// %d packets transmitted, %d packets received, %v%% packet loss
+	// round-trip min/avg/max/stddev = %v/%v/%v/%v`,
+	// 			addr,
+	// 			stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
+	// 			stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt,
+	// 		))
+
 	if stats.PacketLoss > 50 {
 		// 		statistics := fmt.Sprintf(`
 		// --- %s ping statistics ---
@@ -66,9 +95,9 @@ func (c *PingClient) checkPing(addr string) {
 		// 			stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt,
 		// 		)
 
-		statistics := fmt.Sprintf(`--- %s ping statistics ---
+		statistics := fmt.Sprintf(`--- %s to %s ping statistics ---
 %d packets transmitted, %d packets received, %v%% packet loss`,
-			addr, stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
+			c.conf.IP, addr, stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
 		)
 
 		if err := c.bot.Send(addr, statistics); err != nil {

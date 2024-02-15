@@ -16,9 +16,10 @@ type (
 	}
 
 	PingerConfig struct {
-		Timeout time.Duration `yaml:"timeout" env-default:"5s"`
-		// Interval  time.Duration `yaml:"interval" env-default:"1m"`
-		// Addresses []string      `yaml:"addresses"`
+		Count     int               `yaml:"count" env-default:"5"`
+		Interval  time.Duration     `yaml:"interval" env-default:"0.1s"`
+		Timeout   time.Duration     `yaml:"timeout" env-default:"1s"`
+		IP        string            `yaml:"ip" env:"IP"`
 		Addresses []AddressesConfig `yaml:"addresses"`
 	}
 
