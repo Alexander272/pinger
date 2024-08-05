@@ -38,7 +38,7 @@ func main() {
 	for _, ac := range conf.Pinger.Addresses {
 		logger.Debug(ac)
 		logger.Infof("started cron. interval: %s", ac.Interval.String())
-		_, err = cron.Every(ac.Interval).Do(func(ac config.AddressesConfig) {
+		_, err = cron.Every(ac.Interval).Do(func(ac *config.AddressesConfig) {
 			logger.Debug("started ping")
 			pingClient.Ping(ac.List)
 		}, ac)

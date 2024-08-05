@@ -16,16 +16,22 @@ type (
 	}
 
 	PingerConfig struct {
-		Count     int               `yaml:"count" env-default:"5"`
-		Interval  time.Duration     `yaml:"interval" env-default:"0.1s"`
-		Timeout   time.Duration     `yaml:"timeout" env-default:"1s"`
-		IP        string            `yaml:"ip" env:"IP"`
-		Addresses []AddressesConfig `yaml:"addresses"`
+		Count     int                `yaml:"count" env-default:"5"`
+		Interval  time.Duration      `yaml:"interval" env-default:"0.1s"`
+		Timeout   time.Duration      `yaml:"timeout" env-default:"1s"`
+		IP        string             `yaml:"ip" env:"IP"`
+		Rtt       time.Duration      `yaml:"rtt" env-default:"50ms"`
+		Addresses []*AddressesConfig `yaml:"addresses"`
 	}
 
 	AddressesConfig struct {
 		Interval time.Duration `yaml:"interval"`
-		List     []string      `yaml:"list"`
+		List     []*Address    `yaml:"list"`
+	}
+	Address struct {
+		Ip   string        `yaml:"ip"`
+		Name string        `yaml:"name"`
+		Rtt  time.Duration `yaml:"rtt"`
 	}
 
 	BotConfig struct {

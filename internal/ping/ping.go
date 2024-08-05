@@ -13,29 +13,32 @@ type PingClient struct {
 	conf *config.PingerConfig
 	bot  bot.MostBot
 	lost map[string]int
+	long map[string]int
 }
 
 func NewPingClient(conf *config.PingerConfig, bot bot.MostBot) *PingClient {
 	lost := make(map[string]int, 0)
+	long := make(map[string]int, 0)
 
 	return &PingClient{
 		conf: conf,
 		bot:  bot,
 		lost: lost,
+		long: long,
 	}
 }
 
-func (c *PingClient) Ping(addresses []string) {
+func (c *PingClient) Ping(addresses []*config.Address) {
 
 	for _, addr := range addresses {
 		go c.checkPing(addr)
 	}
 }
 
-func (c *PingClient) checkPing(addr string) {
+func (c *PingClient) checkPing(addr *config.Address) {
 	logger.Debug("addr ", addr)
 
-	pinger, err := probing.NewPinger(addr)
+	pinger, err := probing.NewPinger(addr.Ip)
 	if err != nil {
 		logger.Errorf("failed to create new pinger. error: %s", err.Error())
 
@@ -89,10 +92,34 @@ func (c *PingClient) checkPing(addr string) {
 	// 			stats.MinRtt, stats.AvgRtt, stats.MaxRtt, stats.StdDevRtt,
 	// 		))
 
-	logger.Debug("lost ", addr, " ", c.lost[addr])
+	// stats.AvgRtt
+	if addr.Rtt != 0 {
+		logger.Debug("rtt ", addr.Ip, " ", addr.Name)
+		if stats.AvgRtt > addr.Rtt {
+			if c.long[addr.Ip] < 3 {
+				c.long[addr.Ip] += 1
+				message := fmt.Sprintf("Превышено допустимое время пинга **(%s)** для IP **%s (%s)**", stats.AvgRtt.String(), addr.Ip, addr.Name)
+
+				if err := c.bot.LongPing(message); err != nil {
+					logger.Errorf("failed to send message. error: %s", err.Error())
+				}
+			}
+		} else {
+			if c.long[addr.Ip] != 0 {
+				message := fmt.Sprintf("Время пинга **(%s)** для IP **%s (%s)** в норме", stats.AvgRtt.String(), addr.Ip, addr.Name)
+
+				if err := c.bot.LongPing(message); err != nil {
+					logger.Errorf("failed to send message. error: %s", err.Error())
+				}
+			}
+			c.long[addr.Ip] = 0
+		}
+	}
+
+	// logger.Debug("lost ", addr.Ip, " ", c.lost[addr.Ip])
 	if stats.PacketLoss > 50 {
-		if c.lost[addr] < 3 {
-			c.lost[addr] += 1
+		if c.lost[addr.Ip] < 3 {
+			c.lost[addr.Ip] += 1
 			// 		statistics := fmt.Sprintf(`
 			// --- %s ping statistics ---
 			// %d packets transmitted, %d packets received, %v%% packet loss
@@ -105,7 +132,7 @@ func (c *PingClient) checkPing(addr string) {
 
 			statistics := fmt.Sprintf(`--- ping statistics. from %s to %s ---
 %d packets transmitted, %d packets received, %v%% packet loss`,
-				c.conf.IP, addr, stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
+				c.conf.IP, addr.Ip, stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
 			)
 
 			if err := c.bot.SendErr(addr, statistics); err != nil {
@@ -115,12 +142,12 @@ func (c *PingClient) checkPing(addr string) {
 			// logger.Info(statistics)
 		}
 	} else {
-		if c.lost[addr] != 0 {
+		if c.lost[addr.Ip] != 0 {
 			if err := c.bot.Send(addr); err != nil {
 				logger.Errorf("failed to send message. error: %s", err.Error())
 			}
 		}
-		c.lost[addr] = 0
+		c.lost[addr.Ip] = 0
 	}
 
 }
