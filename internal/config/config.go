@@ -10,9 +10,21 @@ import (
 type (
 	Config struct {
 		Environment string       `yaml:"environment" env:"APP_ENV" env-default:"dev"`
+		LogLevel    string       `yaml:"log_level" env-default:"info"`
+		LogSource   bool         `yaml:"log_source" env-default:"false"`
+		Http        HttpConfig   `yaml:"http"`
 		Pinger      PingerConfig `yaml:"pinger"`
 		Bot         BotConfig    `yaml:"bot"`
-		// Redis       RedisConfig
+		Postgres    PostgresConfig
+		Redis       RedisConfig
+	}
+
+	HttpConfig struct {
+		Host           string        `yaml:"host" env:"HOST" env-default:"localhost"`
+		Port           string        `yaml:"port" env:"PORT" env-default:"8080"`
+		ReadTimeout    time.Duration `yaml:"read_timeout" env:"READ_TIMEOUT" env-default:"10s"`
+		WriteTimeout   time.Duration `yaml:"write_timeout" env:"WRITE_TIMEOUT" env-default:"10s"`
+		MaxHeaderBytes int           `yaml:"max_header_bytes" env-default:"1"`
 	}
 
 	PingerConfig struct {
@@ -38,6 +50,22 @@ type (
 		Server    string `env:"MOST_SERVER"`
 		Token     string `env:"MOST_TOKEN"`
 		ChannelId string `env:"MOST_CHANNEL_ID"`
+	}
+
+	PostgresConfig struct {
+		Host     string `yaml:"host" env:"POSTGRES_HOST"`
+		Port     string `yaml:"port" env:"POSTGRES_PORT"`
+		Username string `yaml:"username" env:"POSTGRES_NAME"`
+		Password string `env:"POSTGRES_PASSWORD"`
+		DbName   string `yaml:"db_name" env:"POSTGRES_DB"`
+		SSLMode  string `yaml:"ssl_mode" env:"POSTGRES_SSL"`
+	}
+
+	RedisConfig struct {
+		Host     string `yaml:"host" env:"REDIS_HOST"`
+		Port     string `yaml:"port" env:"REDIS_PORT"`
+		DB       int    `yaml:"db" env:"REDIS_DB"`
+		Password string `env:"REDIS_PASSWORD"`
 	}
 )
 
