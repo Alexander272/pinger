@@ -34,6 +34,7 @@ func NewPingService(addresses Address, post Post) *PingService {
 
 type Ping interface {
 	Ping(addr *models.Address) (*models.Statistic, error)
+	CheckPing(hostIP string)
 }
 
 func (s *PingService) Ping(addr *models.Address) (*models.Statistic, error) {
@@ -69,7 +70,6 @@ func (s *PingService) Ping(addr *models.Address) (*models.Statistic, error) {
 }
 
 func (s *PingService) SendPing(addr *models.Address, hostIP string) {
-	logger.Debug("ping", logger.AnyAttr("addr", addr))
 	ginCtx := &gin.Context{
 		Request: &http.Request{
 			Method: "Get",
@@ -157,37 +157,20 @@ func (s *PingService) CheckPing(hostIP string) {
 		return
 	}
 
+	// urls := make(chan struct{}, 20)
+
 	now := time.Now()
 	for _, address := range addresses {
-		isAfter := now.After(time.Date(now.Year(), now.Month(), now.Day(), 0, int(address.PeriodStart.Minutes()), 0, 0, now.Location()))
-		isBefore := now.Before(time.Date(now.Year(), now.Month(), now.Day(), 0, int(address.PeriodEnd.Minutes()), 0, 0, now.Location()))
-
+		isAfter, isBefore := true, true
+		if address.PeriodStart != 0 && address.PeriodEnd != 0 {
+			isAfter = now.After(time.Date(now.Year(), now.Month(), now.Day(), 0, int(address.PeriodStart.Minutes()), 0, 0, now.Location()))
+			isBefore = now.Before(time.Date(now.Year(), now.Month(), now.Day(), 0, int(address.PeriodEnd.Minutes()), 0, 0, now.Location()))
+		}
 		if !isAfter || !isBefore {
 			continue
 		}
 
+		logger.Debug("ping", logger.AnyAttr("addr", address))
 		go s.SendPing(address, hostIP)
-
-		// go (func() {
-		// 	stats, err := s.Ping(address)
-		// 	if err != nil {
-		// 		logger.Error("failed to ping address.", logger.ErrAttr(err))
-		// 		ginCtx.Request.URL = &url.URL{Host: "ping-bot", Path: "ping address"}
-		// 		error_bot.Send(ginCtx, err.Error(), nil)
-		// 		return
-		// 	}
-
-		// 	// if stats.IsFailed {
-		// 	// 	s.post.Send(&models.Post{Message: fmt.Sprintf("Пинг по адресу **%s (%s)** не прошел.\n```\n%s\n```", stats.IP, stats.Name, message)})
-		// 	// }
-		// })()
-
-		// statistic, err := s.Ping(address)
-		// if err != nil {
-		// 	logger.Error("failed to ping address.", logger.ErrAttr(err))
-		// 	ginCtx.Request.URL = &url.URL{Host: "ping-bot", Path: "ping address"}
-		// 	error_bot.Send(ginCtx, err.Error(), nil)
-		// 	continue
-		// }
 	}
 }

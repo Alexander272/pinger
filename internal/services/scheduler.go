@@ -11,9 +11,10 @@ import (
 
 type SchedulerService struct {
 	cron gocron.Scheduler
+	ping Ping
 }
 
-func NewSchedulerService() *SchedulerService {
+func NewSchedulerService(ping Ping) *SchedulerService {
 	cron, err := gocron.NewScheduler()
 	if err != nil {
 		log.Fatalf("failed to create new scheduler. error: %s", err.Error())
@@ -21,6 +22,7 @@ func NewSchedulerService() *SchedulerService {
 
 	return &SchedulerService{
 		cron: cron,
+		ping: ping,
 	}
 }
 
@@ -31,21 +33,13 @@ type Scheduler interface {
 }
 
 func (s *SchedulerService) Start() error {
-	// now := time.Now()
-	// jobStart := time.Date(now.Year(), now.Month(), now.Day(), conf.StartTime, 0, 0, 0, now.Location())
-	// if now.Hour() >= conf.StartTime {
-	// 	jobStart = jobStart.Add(24 * time.Hour)
-	// }
-	// // jobStart := now.Add(1 * time.Minute)
-	// logger.Info("start time of job " + jobStart.Format("02.01.2006 15:04:05"))
-
 	hostIP := utils.GetOutboundIP()
+	jobStart := time.Now().Add(1 * time.Minute)
 
 	// job := gocron.DurationJob(conf.Interval)
 	job := gocron.DurationJob(1 * time.Minute)
 	task := gocron.NewTask(s.job, hostIP.String())
-	// jobStartAt := gocron.WithStartAt(gocron.WithStartDateTime(jobStart))
-	jobStartAt := gocron.WithStartAt(gocron.WithStartDateTime(time.Now()))
+	jobStartAt := gocron.WithStartAt(gocron.WithStartDateTime(jobStart))
 
 	_, err := s.cron.NewJob(job, task, jobStartAt)
 	if err != nil {
@@ -75,5 +69,5 @@ func (s *SchedulerService) Stop() error {
 }
 
 func (s *SchedulerService) job(hostIP string) {
-	// TODO
+	s.ping.CheckPing(hostIP)
 }

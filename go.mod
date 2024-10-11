@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jmoiron/sqlx v1.3.4
+	github.com/lib/pq v1.10.4
 	github.com/mattermost/mattermost-server/v6 v6.7.2
 	github.com/prometheus-community/pro-bing v0.4.1
 	github.com/subosito/gotenv v1.2.0

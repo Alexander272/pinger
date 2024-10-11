@@ -20,8 +20,8 @@ func NewAddressService(repo repo.Address) *AddressService {
 
 type Address interface {
 	Get(ctx context.Context) ([]*models.Address, error)
-	Create(ctx context.Context, address *models.Address) error
-	Update(ctx context.Context, address *models.Address) error
+	Create(ctx context.Context, address *models.AddressDTO) error
+	Update(ctx context.Context, address *models.AddressDTO) error
 	Delete(ctx context.Context, ip string) error
 }
 
@@ -33,14 +33,14 @@ func (s *AddressService) Get(ctx context.Context) ([]*models.Address, error) {
 	return data, nil
 }
 
-func (s *AddressService) Create(ctx context.Context, address *models.Address) error {
+func (s *AddressService) Create(ctx context.Context, address *models.AddressDTO) error {
 	if err := s.repo.Create(ctx, address); err != nil {
 		return fmt.Errorf("failed to create addresses. error: %w", err)
 	}
 	return nil
 }
 
-func (s *AddressService) Update(ctx context.Context, address *models.Address) error {
+func (s *AddressService) Update(ctx context.Context, address *models.AddressDTO) error {
 	if err := s.repo.Update(ctx, address); err != nil {
 		return fmt.Errorf("failed to update addresses. error: %w", err)
 	}

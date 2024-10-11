@@ -2,10 +2,17 @@ package main
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Alexander272/Pinger/internal/config"
+	"github.com/Alexander272/Pinger/internal/repo"
+	"github.com/Alexander272/Pinger/internal/services"
+	"github.com/Alexander272/Pinger/pkg/database/postgres"
 	"github.com/Alexander272/Pinger/pkg/logger"
 	"github.com/Alexander272/Pinger/pkg/mattermost"
+	_ "github.com/lib/pq"
 	"github.com/subosito/gotenv"
 )
 
@@ -21,6 +28,18 @@ func main() {
 	logger.NewLogger(logger.WithLevel(conf.LogLevel), logger.WithAddSource(conf.LogSource))
 
 	//* Dependencies
+	db, err := postgres.NewPostgresDB(postgres.Config{
+		Host:     conf.Postgres.Host,
+		Port:     conf.Postgres.Port,
+		Username: conf.Postgres.Username,
+		Password: conf.Postgres.Password,
+		DBName:   conf.Postgres.DbName,
+		SSLMode:  conf.Postgres.SSLMode,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize db: %s", err.Error())
+	}
+
 	mattermostConf := mattermost.Config{
 		ServerLink: conf.Bot.Server,
 		Token:      conf.Bot.Token,
@@ -39,14 +58,29 @@ func main() {
 	logger.Debug("me", logger.AnyAttr("bot", bot))
 
 	//* Services, Repos & API Handlers
-	// servicesDeps := services.Deps{
-	// 	MostClient: mostClient.Http,
-	// 	BotName:    conf.Most.BotName,
-	// }
-	// services := services.NewServices(servicesDeps)
+	repos := repo.NewRepository(db)
+
+	servicesDeps := &services.Deps{
+		Repo:      repos,
+		Client:    mostClient.Http,
+		ChannelID: conf.Bot.ChannelId,
+	}
+	services := services.NewServices(servicesDeps)
 	// handlers := transport.NewHandler(services)
 
+	// newAddr := &models.AddressDTO{
+	// 	IP: "192.168.70.247",
+	// }
+	// *newAddr.Name = "test"
+	// *newAddr.MaxRTT = 30 * time.Millisecond
+	// *newAddr.PeriodStart = 14 * time.Hour
+	// services.Address.Create(context.Background(), newAddr)
+
 	// socHandler := socket.NewHandler(mostClient.Socket, bot)
+
+	if err := services.Scheduler.Start(); err != nil {
+		log.Fatalf("failed to start scheduler. error: %s\n", err.Error())
+	}
 
 	// socHandler.Listen()
 
@@ -59,10 +93,14 @@ func main() {
 	// }()
 	// logger.Infof("Application started on port: %s", conf.Http.Port)
 
-	// quit := make(chan os.Signal, 1)
-	// signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 
-	// <-quit
+	<-quit
+
+	if err := services.Scheduler.Stop(); err != nil {
+		logger.Error("failed to stop sending notification.", logger.ErrAttr(err))
+	}
 
 	// const timeout = 5 * time.Second
 	// ctx, shutdown := context.WithTimeout(context.Background(), timeout)

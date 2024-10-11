@@ -1,22 +1,33 @@
 package services
 
-import "github.com/Alexander272/Pinger/internal/repo"
+import (
+	"github.com/Alexander272/Pinger/internal/repo"
+	"github.com/mattermost/mattermost-server/v6/model"
+)
 
 type Services struct {
+	Post
 	Address
+	Ping
 	Scheduler
 }
 
 type Deps struct {
-	repo *repo.Repository
+	Repo      *repo.Repository
+	Client    *model.Client4
+	ChannelID string
 }
 
 func NewServices(deps *Deps) *Services {
-	addresses := NewAddressService(deps.repo.Address)
-	scheduler := NewSchedulerService()
+	post := NewPostService(deps.Client, deps.ChannelID)
+	addresses := NewAddressService(deps.Repo.Address)
+	ping := NewPingService(addresses, post)
+	scheduler := NewSchedulerService(ping)
 
 	return &Services{
+		Post:      post,
 		Address:   addresses,
+		Ping:      ping,
 		Scheduler: scheduler,
 	}
 }

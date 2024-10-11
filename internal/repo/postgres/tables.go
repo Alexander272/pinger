@@ -1,6 +1,6 @@
 package postgres
 
 const (
-	AddressTable   = "ip_list"
+	AddressTable   = "addresses"
 	SchedulerTable = "scheduler"
 )

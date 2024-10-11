@@ -2,7 +2,6 @@ package repo
 
 import (
 	"github.com/Alexander272/Pinger/internal/repo/postgres"
-	"github.com/go-redis/redis/v8"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -14,7 +13,7 @@ type Repository struct {
 	Address
 }
 
-func NewRepository(db *sqlx.DB, redis *redis.Client) *Repository {
+func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
 		Address: postgres.NewAddressRepo(db),
 	}
