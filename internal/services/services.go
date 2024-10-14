@@ -9,6 +9,8 @@ type Services struct {
 	Post
 	Address
 	Ping
+	Information
+	Message
 	Scheduler
 }
 
@@ -22,12 +24,16 @@ func NewServices(deps *Deps) *Services {
 	post := NewPostService(deps.Client, deps.ChannelID)
 	addresses := NewAddressService(deps.Repo.Address)
 	ping := NewPingService(addresses, post)
+	information := NewInformationService(post)
+	message := NewMessageService(addresses, post)
 	scheduler := NewSchedulerService(ping)
 
 	return &Services{
-		Post:      post,
-		Address:   addresses,
-		Ping:      ping,
-		Scheduler: scheduler,
+		Post:        post,
+		Address:     addresses,
+		Ping:        ping,
+		Information: information,
+		Message:     message,
+		Scheduler:   scheduler,
 	}
 }

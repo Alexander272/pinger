@@ -67,15 +67,6 @@ func main() {
 	}
 	services := services.NewServices(servicesDeps)
 	// handlers := transport.NewHandler(services)
-
-	// newAddr := &models.AddressDTO{
-	// 	IP: "192.168.70.247",
-	// }
-	// *newAddr.Name = "test"
-	// *newAddr.MaxRTT = 30 * time.Millisecond
-	// *newAddr.PeriodStart = 14 * time.Hour
-	// services.Address.Create(context.Background(), newAddr)
-
 	// socHandler := socket.NewHandler(mostClient.Socket, bot)
 
 	if err := services.Scheduler.Start(); err != nil {

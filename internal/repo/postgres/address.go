@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -21,13 +22,15 @@ func NewAddressRepo(db *sqlx.DB) *AddressRepo {
 
 type Address interface {
 	Get(context.Context) ([]*models.Address, error)
+	GetAll(context.Context) ([]*models.Address, error)
+	GetByIP(context.Context, string) (*models.Address, error)
 	Create(context.Context, *models.AddressDTO) error
 	Update(context.Context, *models.AddressDTO) error
 	Delete(ctx context.Context, ip string) error
 }
 
 func (r *AddressRepo) Get(ctx context.Context) ([]*models.Address, error) {
-	query := fmt.Sprintf(`SELECT id, ip, name, max_rtt, interval, count, timeout, not_count, period_start, period_end, enabled, created_at 
+	query := fmt.Sprintf(`SELECT id, ip, name, max_rtt, interval, count, timeout, not_count, period_start, period_end, created_at 
 		FROM %s WHERE enabled=true ORDER BY created_at`,
 		AddressTable,
 	)
@@ -57,12 +60,75 @@ func (r *AddressRepo) Get(ctx context.Context) ([]*models.Address, error) {
 			NotificationCount: v.NotificationCount,
 			PeriodStart:       time.Duration(v.PeriodStart) * time.Minute,
 			PeriodEnd:         time.Duration(v.PeriodEnd) * time.Minute,
-			Enabled:           v.Enabled,
 			Created:           v.Created,
 		})
 	}
 
 	return data, nil
+}
+
+func (r *AddressRepo) GetAll(ctx context.Context) ([]*models.Address, error) {
+	query := fmt.Sprintf(`SELECT id, ip, name, max_rtt, interval, count, timeout, not_count, period_start, period_end, enabled, created_at 
+		FROM %s ORDER BY created_at`,
+		AddressTable,
+	)
+	tmp := []*pq_models.Address{}
+	data := []*models.Address{}
+
+	err := r.db.SelectContext(ctx, &tmp, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query. error: %w", err)
+	}
+
+	for _, v := range tmp {
+		data = append(data, &models.Address{
+			ID:                v.ID,
+			IP:                v.IP,
+			Name:              v.Name,
+			MaxRTT:            time.Duration(v.MaxRTT) * time.Millisecond,
+			Interval:          time.Duration(v.Interval) * time.Millisecond,
+			Count:             v.Count,
+			Timeout:           time.Duration(v.Timeout) * time.Millisecond,
+			NotificationCount: v.NotificationCount,
+			PeriodStart:       time.Duration(v.PeriodStart) * time.Minute,
+			PeriodEnd:         time.Duration(v.PeriodEnd) * time.Minute,
+			Enabled:           v.Enabled,
+			Created:           v.Created,
+		})
+	}
+	return data, nil
+}
+
+func (r *AddressRepo) GetByIP(ctx context.Context, ip string) (*models.Address, error) {
+	query := fmt.Sprintf(`SELECT id, ip, name, max_rtt, interval, count, timeout, not_count, period_start, period_end, enabled, created_at 
+		FROM %s WHERE ip = $1`,
+		AddressTable,
+	)
+	tmp := &pq_models.Address{}
+
+	err := r.db.GetContext(ctx, tmp, query, ip)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, models.ErrNoRows
+		}
+		return nil, fmt.Errorf("failed to execute query. error: %w", err)
+	}
+
+	address := &models.Address{
+		ID:                tmp.ID,
+		IP:                tmp.IP,
+		Name:              tmp.Name,
+		MaxRTT:            time.Duration(tmp.MaxRTT) * time.Millisecond,
+		Interval:          time.Duration(tmp.Interval) * time.Millisecond,
+		Count:             tmp.Count,
+		Timeout:           time.Duration(tmp.Timeout) * time.Millisecond,
+		NotificationCount: tmp.NotificationCount,
+		PeriodStart:       time.Duration(tmp.PeriodStart) * time.Minute,
+		PeriodEnd:         time.Duration(tmp.PeriodEnd) * time.Minute,
+		Enabled:           tmp.Enabled,
+		Created:           tmp.Created,
+	}
+	return address, nil
 }
 
 func (r *AddressRepo) Create(ctx context.Context, dto *models.AddressDTO) error {
