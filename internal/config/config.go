@@ -49,7 +49,7 @@ type (
 	BotConfig struct {
 		Server    string `env:"MOST_SERVER"`
 		Token     string `env:"MOST_TOKEN"`
-		ChannelId string `env:"MOST_CHANNEL_ID"`
+		ChannelId string `env:"MOST_CHANNEL_ID" yaml:"channel_id"`
 	}
 
 	PostgresConfig struct {

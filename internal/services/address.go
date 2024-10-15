@@ -57,6 +57,9 @@ func (s *AddressService) GetByIP(ctx context.Context, ip string) (*models.Addres
 
 func (s *AddressService) Create(ctx context.Context, address *models.AddressDTO) error {
 	if err := s.repo.Create(ctx, address); err != nil {
+		if errors.Is(err, models.ErrExist) {
+			return models.ErrExist
+		}
 		return fmt.Errorf("failed to create addresses. error: %w", err)
 	}
 	return nil

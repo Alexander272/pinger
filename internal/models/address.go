@@ -37,3 +37,14 @@ type Statistic struct {
 	IsFailed        bool   `json:"isFailed"`
 	MaxNotification int    `json:"maxNotification"`
 }
+
+type Decode struct {
+	Name              *string `short:"n" long:"name" description:"Название адреса"`
+	MaxRTT            int     `short:"r" long:"rtt" description:"Допустимое время пинга в миллисекундах"`
+	Interval          int     `short:"i" long:"interval" description:"Show verbose debug information"`
+	Timeout           int     `short:"t" long:"timeout" description:"Show verbose debug information"`
+	Count             *int    `short:"c" long:"count" description:"Show verbose debug information"`
+	NotificationCount *int    `short:"N" long:"notification" description:"Show verbose debug information"`
+	Period            string  `short:"p" long:"period" description:"Show verbose debug information"`
+	// Enabled           *bool   `short:"v" long:"verbose" description:"Show verbose debug information"`
+}

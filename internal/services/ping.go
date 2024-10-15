@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/Alexander272/Pinger/internal/models"
@@ -70,17 +68,10 @@ func (s *PingService) Ping(addr *models.Address) (*models.Statistic, error) {
 }
 
 func (s *PingService) SendPing(addr *models.Address, hostIP string) {
-	ginCtx := &gin.Context{
-		Request: &http.Request{
-			Method: "Get",
-		},
-	}
-
 	pinger, err := probing.NewPinger(addr.IP)
 	if err != nil {
 		logger.Error("failed to create new pinger.", logger.ErrAttr(err))
-		ginCtx.Request.URL = &url.URL{Host: "ping-bot", Path: "create pinger"}
-		error_bot.Send(ginCtx, err.Error(), nil)
+		error_bot.Send(&gin.Context{}, err.Error(), nil)
 		s.post.Send(&models.Post{Message: "Произошла ошибка при создании экземпляра pinger."})
 		return
 	}
@@ -92,8 +83,7 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
 		logger.Error("failed to run pinger.", logger.ErrAttr(err))
-		ginCtx.Request.URL = &url.URL{Host: "ping-bot", Path: "run pinger"}
-		error_bot.Send(ginCtx, err.Error(), nil)
+		error_bot.Send(&gin.Context{}, err.Error(), nil)
 
 		s.post.Send(&models.Post{Message: "Произошла ошибка при запуске pinger."})
 		return
@@ -106,7 +96,7 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 		if !ok || count < addr.NotificationCount {
 			s.failed.Inc(addr.IP)
 
-			statistics := fmt.Sprintf(`--- ping statistics. from %s to %s ---\n%d packets transmitted, %d packets received, %v%% packet loss`,
+			statistics := fmt.Sprintf("--- ping statistics. from %s to %s ---\n%d packets transmitted, %d packets received, %v%% packet loss",
 				hostIP, addr.IP, stats.PacketsSent, stats.PacketsRecv, stats.PacketLoss,
 			)
 			message := fmt.Sprintf("Пинг по адресу **%s (%s)** не прошел.\n```\n%s\n```", addr.IP, addr.Name, statistics)
@@ -122,7 +112,11 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 		s.failed.Store(addr.IP, 0)
 	}
 
-	if addr.MaxRTT != 0 && stats.AvgRtt >= addr.MaxRTT {
+	if addr.MaxRTT == 0 {
+		return
+	}
+
+	if stats.AvgRtt >= addr.MaxRTT {
 		count, ok := s.long.Load(addr.IP)
 		if !ok || count < addr.NotificationCount {
 			s.long.Inc(addr.IP)
@@ -130,7 +124,7 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 			message := fmt.Sprintf("Превышено допустимое время пинга **(%s)** для IP **%s (%s)**", stats.AvgRtt.String(), addr.IP, addr.Name)
 			s.post.Send(&models.Post{Message: message})
 		}
-	} else if addr.MaxRTT != 0 {
+	} else {
 		count, ok := s.long.Load(addr.IP)
 		if ok && count != 0 {
 			message := fmt.Sprintf("Время пинга **(%s)** для IP **%s (%s)** в норме", stats.AvgRtt.String(), addr.IP, addr.Name)
@@ -141,18 +135,10 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 }
 
 func (s *PingService) CheckPing(hostIP string) {
-	ginCtx := &gin.Context{
-		Request: &http.Request{
-			Method: "Get",
-			// URL:    &url.URL{Host: "cron", Path: "delete-old-reagent"},
-		},
-	}
-
 	addresses, err := s.addresses.Get(context.Background())
 	if err != nil {
 		logger.Error("failed to get addresses.", logger.ErrAttr(err))
-		ginCtx.Request.URL = &url.URL{Host: "ping-bot", Path: "get addresses"}
-		error_bot.Send(ginCtx, err.Error(), nil)
+		error_bot.Send(&gin.Context{}, err.Error(), nil)
 		s.post.Send(&models.Post{Message: "Произошла ошибка при получении адресов."})
 		return
 	}

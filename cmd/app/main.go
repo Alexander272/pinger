@@ -9,6 +9,7 @@ import (
 	"github.com/Alexander272/Pinger/internal/config"
 	"github.com/Alexander272/Pinger/internal/repo"
 	"github.com/Alexander272/Pinger/internal/services"
+	"github.com/Alexander272/Pinger/internal/transport/socket"
 	"github.com/Alexander272/Pinger/pkg/database/postgres"
 	"github.com/Alexander272/Pinger/pkg/logger"
 	"github.com/Alexander272/Pinger/pkg/mattermost"
@@ -67,13 +68,11 @@ func main() {
 	}
 	services := services.NewServices(servicesDeps)
 	// handlers := transport.NewHandler(services)
-	// socHandler := socket.NewHandler(mostClient.Socket, bot)
+	socHandler := socket.NewHandler(&socket.Deps{Socket: mostClient.Socket, User: bot, Services: services})
 
 	if err := services.Scheduler.Start(); err != nil {
 		log.Fatalf("failed to start scheduler. error: %s\n", err.Error())
 	}
-
-	// socHandler.Listen()
 
 	//* HTTP Server
 	// srv := server.NewServer(conf, handlers.Init(conf))
@@ -83,6 +82,11 @@ func main() {
 	// 	}
 	// }()
 	// logger.Infof("Application started on port: %s", conf.Http.Port)
+
+	go func() {
+		// TODO при ошибке приложение падает
+		socHandler.Listen()
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
@@ -97,7 +101,7 @@ func main() {
 	// ctx, shutdown := context.WithTimeout(context.Background(), timeout)
 	// defer shutdown()
 
-	// socHandler.Close()
+	socHandler.Close()
 
 	// if err := srv.Stop(ctx); err != nil {
 	// 	logger.Errorf("failed to stop server. error: %s", err.Error())

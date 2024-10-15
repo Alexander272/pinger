@@ -2,7 +2,6 @@ package error_bot
 
 import (
 	"bytes"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -34,7 +33,7 @@ func Send(c *gin.Context, e string, request interface{}) {
 	var req []byte
 	if request != nil {
 		var err error
-		req, err = json.Marshal(request)
+		req, err = json.MarshalIndent(request, "", "	")
 		if err != nil {
 			slog.Error("failed to marshal request body.", slog.String("error", err.Error()))
 		}
@@ -42,13 +41,13 @@ func Send(c *gin.Context, e string, request interface{}) {
 
 	message := Message{
 		Service: Service{
-			Id:   "reagents",
-			Name: "Accounting of reagents",
+			Id:   os.Getenv("SERVICE_ID"),
+			Name: os.Getenv("SERVICE_NAME"),
 		},
 		Data: MessageData{
-			Date:    time.Now().Format("02/01/2006 - 15:04:05"),
-			IP:      c.ClientIP(),
-			URL:     fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.String()),
+			Date: time.Now().Format("02/01/2006 - 15:04:05"),
+			// IP:      c.ClientIP(),
+			// URL:     fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.String()),
 			Error:   e,
 			Request: string(req),
 		},

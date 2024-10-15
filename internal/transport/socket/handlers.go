@@ -1,10 +1,10 @@
 package socket
 
 import (
-	"net/http"
-	"net/url"
 	"regexp"
+	"strings"
 
+	"github.com/Alexander272/Pinger/internal/models"
 	"github.com/Alexander272/Pinger/internal/services"
 	"github.com/Alexander272/Pinger/pkg/error_bot"
 	"github.com/Alexander272/Pinger/pkg/logger"
@@ -16,13 +16,13 @@ import (
 type Handler struct {
 	socket   *model.WebSocketClient
 	user     *model.User
-	services services.Services
+	services *services.Services
 }
 
 type Deps struct {
 	Socket   *model.WebSocketClient
 	User     *model.User
-	Services services.Services
+	Services *services.Services
 }
 
 func NewHandler(deps *Deps) *Handler {
@@ -50,12 +50,8 @@ func (h *Handler) Close() {
 }
 
 func (h *Handler) handleEvent(event *model.WebSocketEvent) {
-	logger.Debug("event", logger.StringAttr("type", event.EventType()))
-	logger.Debug("event", logger.AnyAttr("data", event))
-
-	gCtx := &gin.Context{
-		Request: &http.Request{},
-	}
+	// logger.Debug("event", logger.StringAttr("type", event.EventType()))
+	// logger.Debug("event", logger.AnyAttr("data", event))
 
 	if event.EventType() != model.WebsocketEventPosted {
 		return
@@ -68,8 +64,7 @@ func (h *Handler) handleEvent(event *model.WebSocketEvent) {
 	err := json.Unmarshal([]byte(event.GetData()["post"].(string)), &post)
 	if err != nil {
 		logger.Error("Could not cast event to *model.Post", logger.ErrAttr(err))
-		gCtx.Request = &http.Request{Method: "Get", URL: &url.URL{Host: "ping-bot", Path: "cast event to post"}}
-		error_bot.Send(gCtx, err.Error(), post)
+		error_bot.Send(&gin.Context{}, err.Error(), post)
 		return
 	}
 
@@ -77,93 +72,34 @@ func (h *Handler) handleEvent(event *model.WebSocketEvent) {
 	if post.UserId == h.user.Id {
 		return
 	}
+	post.Message = strings.TrimSpace(post.Message)
 
-	match, err := regexp.MatchString("about|обо мне", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		h.services.Information.AboutMe()
-		return
+	matches := [...]struct {
+		pattern string
+		handler func(*models.Post) error
+	}{
+		{"^about|^обо мне", h.services.Information.AboutMe},
+		{"^list|^список", h.services.Message.List},
+		{"^add|^добавить", h.services.Message.Create},
+		{"^update|^обновить", h.services.Message.Update},
+		{"^disable|^отключить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, false) }},
+		{"^enable|^включить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, true) }},
+		{"^delete|^удалить", h.services.Message.Delete},
+		{"help|man|помощь|мануал", h.services.Information.Help},
 	}
 
-	match, err = regexp.MatchString("list|список", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.List(post.Message); err != nil {
-			gCtx.Request = &http.Request{Method: "Get", URL: &url.URL{Host: "ping-bot", Path: "list ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
+	for _, match := range matches {
+		if ok, _ := regexp.MatchString(match.pattern, post.Message); ok {
+			if err := match.handler(&models.Post{ChannelID: post.ChannelId, Message: post.Message}); err != nil {
+				error_bot.Send(&gin.Context{}, err.Error(), post)
+			}
+			return
 		}
-		return
 	}
 
-	match, err = regexp.MatchString("add|добавить", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.Create(post.Message); err != nil {
-			gCtx.Request = &http.Request{Method: "Post", URL: &url.URL{Host: "ping-bot", Path: "create ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
-		}
-		return
+	if ok, _ := regexp.MatchString("^panic", post.Message); ok {
+		panic("panic")
 	}
 
-	match, err = regexp.MatchString("update|обновить", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.Update(post.Message); err != nil {
-			gCtx.Request = &http.Request{Method: "Put", URL: &url.URL{Host: "ping-bot", Path: "update ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
-		}
-		return
-	}
-
-	match, err = regexp.MatchString("disable|отключить", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.ToggleActive(post.Message, false); err != nil {
-			gCtx.Request = &http.Request{Method: "Put", URL: &url.URL{Host: "ping-bot", Path: "disable ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
-		}
-		return
-	}
-	match, err = regexp.MatchString("enable|включить", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.ToggleActive(post.Message, true); err != nil {
-			gCtx.Request = &http.Request{Method: "Put", URL: &url.URL{Host: "ping-bot", Path: "enable ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
-		}
-		return
-	}
-
-	match, err = regexp.MatchString("delete|удалить", post.Message)
-	if err != nil {
-		logger.Error("failed to match string", logger.ErrAttr(err))
-	}
-	if match {
-		if err := h.services.Message.Delete(post.Message); err != nil {
-			gCtx.Request = &http.Request{Method: "Delete", URL: &url.URL{Host: "ping-bot", Path: "delete ip"}}
-			error_bot.Send(gCtx, err.Error(), post)
-		}
-		return
-	}
-
-	// match, err = regexp.MatchString("help|man|помощь|мануал", post.Message)
-	// if err != nil {
-	// 	logger.Error("failed to match string", logger.ErrAttr(err))
-	// }
-	// if match {
-	h.services.Information.Help()
-	// return
-	// }
+	h.services.Information.Help(&models.Post{ChannelID: post.ChannelId, Message: post.Message})
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Alexander272/Pinger/internal/models"
@@ -37,7 +38,7 @@ func (r *AddressRepo) Get(ctx context.Context) ([]*models.Address, error) {
 	tmp := []*pq_models.Address{}
 	data := []*models.Address{}
 
-	//TODO если я буду хранить данные не в ns, тогда придется создать структуру в которую будут записываться данные из базы, а затем нужно будет преобразовывать их в time.Duration
+	//// если я буду хранить данные не в ns, тогда придется создать структуру в которую будут записываться данные из базы, а затем нужно будет преобразовывать их в time.Duration
 	/* Если хранить это все в int
 	*	max_rtt, interval, timeout число в миллисекундах
 	*	period_start, period_end в минутах
@@ -132,44 +133,64 @@ func (r *AddressRepo) GetByIP(ctx context.Context, ip string) (*models.Address, 
 }
 
 func (r *AddressRepo) Create(ctx context.Context, dto *models.AddressDTO) error {
-	query := fmt.Sprintf(`INSERT INTO %s (id, ip, name, max_rtt, interval, count, timeout, not_count, period_start, period_end, enabled) 
-		VALUES (:id, :ip, :name, :max_rtt, :interval, :count, :timeout, :not_count, :period_start, :period_end, :enabled)`,
-		AddressTable,
-	)
-	dto.ID = uuid.NewString()
+	params := []string{"id", "ip"}
+	times := [5]int64{}
 
 	data := pq_models.AddressDTO{
-		ID:                dto.ID,
+		ID:                uuid.NewString(),
 		IP:                dto.IP,
 		Name:              dto.Name,
 		Count:             dto.Count,
 		NotificationCount: dto.NotificationCount,
 		Enabled:           dto.Enabled,
 	}
-	times := [5]int64{}
+
+	if dto.Name != nil {
+		params = append(params, "name")
+	}
 	if dto.MaxRTT != nil {
+		params = append(params, "max_rtt")
 		times[0] = dto.MaxRTT.Milliseconds()
 		data.MaxRTT = &times[0]
 	}
 	if dto.Interval != nil {
+		params = append(params, "interval")
 		times[1] = dto.Interval.Milliseconds()
 		data.Interval = &times[1]
 	}
+	if dto.Count != nil {
+		params = append(params, "count")
+	}
 	if dto.Timeout != nil {
+		params = append(params, "timeout")
 		times[2] = dto.Timeout.Milliseconds()
 		data.Timeout = &times[2]
 	}
+	if dto.NotificationCount != nil {
+		params = append(params, "not_count")
+	}
 	if dto.PeriodStart != nil {
+		params = append(params, "period_start")
 		times[3] = int64(dto.PeriodStart.Minutes())
 		data.PeriodStart = &times[3]
 	}
 	if dto.PeriodEnd != nil {
+		params = append(params, "period_end")
 		times[4] = int64(dto.PeriodEnd.Minutes())
 		data.PeriodEnd = &times[4]
 	}
+	if dto.Enabled != nil {
+		params = append(params, "enabled")
+	}
+	names := ":" + strings.Join(params, ",:")
+
+	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s)`, AddressTable, strings.Join(params, ","), names)
 
 	_, err := r.db.NamedExecContext(ctx, query, data)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return models.ErrExist
+		}
 		return fmt.Errorf("failed to execute query. error: %w", err)
 	}
 	return nil
@@ -221,7 +242,7 @@ func (r *AddressRepo) Update(ctx context.Context, dto *models.AddressDTO) error 
 func (r *AddressRepo) Delete(ctx context.Context, ip string) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE ip = $1`, AddressTable)
 
-	_, err := r.db.NamedExecContext(ctx, query, ip)
+	_, err := r.db.ExecContext(ctx, query, ip)
 	if err != nil {
 		return fmt.Errorf("failed to execute query. error: %w", err)
 	}
