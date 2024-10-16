@@ -14,13 +14,12 @@ import (
 	"github.com/Alexander272/Pinger/pkg/logger"
 	"github.com/Alexander272/Pinger/pkg/mattermost"
 	_ "github.com/lib/pq"
-	"github.com/subosito/gotenv"
 )
 
 func main() {
-	if err := gotenv.Load(".env"); err != nil {
-		log.Fatalf("failed to load env variables. error: %s", err.Error())
-	}
+	// if err := gotenv.Load(".env"); err != nil {
+	// 	log.Fatalf("failed to load env variables. error: %s", err.Error())
+	// }
 
 	conf, err := config.Init("configs/config.yaml")
 	if err != nil {

@@ -3,9 +3,9 @@ package services
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
-	"github.com/Alexander272/Pinger/internal/utils"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -33,12 +33,14 @@ type Scheduler interface {
 }
 
 func (s *SchedulerService) Start() error {
-	hostIP := utils.GetOutboundIP()
+	// hostIP := utils.GetOutboundIP().String()
+	// поскольку я запускаю бота через docker compose, выполняя команду выше я получаю ip контейнера, а не хоста. Поэтому приходится задавать ip через env
+	hostIP := os.Getenv("HOST_IP")
 	jobStart := time.Now().Add(1 * time.Minute)
 
 	// job := gocron.DurationJob(conf.Interval)
 	job := gocron.DurationJob(1 * time.Minute)
-	task := gocron.NewTask(s.job, hostIP.String())
+	task := gocron.NewTask(s.job, hostIP)
 	jobStartAt := gocron.WithStartAt(gocron.WithStartDateTime(jobStart))
 
 	_, err := s.cron.NewJob(job, task, jobStartAt)

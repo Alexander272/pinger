@@ -93,7 +93,7 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 
 	if stats.PacketLoss > 50 {
 		count, ok := s.failed.Load(addr.IP)
-		if !ok || count < addr.NotificationCount {
+		if addr.NotificationCount == 0 || !ok || count < addr.NotificationCount {
 			s.failed.Inc(addr.IP)
 
 			statistics := fmt.Sprintf("--- ping statistics. from %s to %s ---\n%d packets transmitted, %d packets received, %v%% packet loss",
@@ -101,8 +101,8 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 			)
 			message := fmt.Sprintf("Пинг по адресу **%s (%s)** не прошел.\n```\n%s\n```", addr.IP, addr.Name, statistics)
 			s.post.Send(&models.Post{Message: message})
-			return
 		}
+		return
 	}
 
 	count, ok := s.failed.Load(addr.IP)
@@ -118,7 +118,7 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 
 	if stats.AvgRtt >= addr.MaxRTT {
 		count, ok := s.long.Load(addr.IP)
-		if !ok || count < addr.NotificationCount {
+		if addr.NotificationCount == 0 || !ok || count < addr.NotificationCount {
 			s.long.Inc(addr.IP)
 
 			message := fmt.Sprintf("Превышено допустимое время пинга **(%s)** для IP **%s (%s)**", stats.AvgRtt.String(), addr.IP, addr.Name)

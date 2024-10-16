@@ -48,31 +48,31 @@ func (s *MessageService) List(post *models.Post) error {
 		isAll = true
 	}
 	table := []string{
-		"| IP-адрес | Название | Статус |",
-		"|:----|:----|:--|",
+		"| № | IP-адрес | Название | Статус |",
+		"|:--|:----|:----|:--|",
 		// "|:-:|:-:|:-:|",
 	}
 	if isAll {
 		table = []string{
-			"| IP-адрес | Название | Допустимое время пинга | Количество уведомлений | Период | Интервал отправки пакетов | Таймаут до завершения ping | Количество пакетов | Статус |",
-			"|:----|:----|:--|:--|:--|:--|:--|:--|:--|",
+			"| № | IP-адрес | Название | Допустимое время пинга | Количество уведомлений | Период | Интервал отправки пакетов | Таймаут до завершения ping | Количество пакетов | Статус |",
+			"|:--|:----|:----|:--|:--|:--|:--|:--|:--|:--|",
 		}
 	}
 
-	for _, address := range addresses {
+	for i, address := range addresses {
 		isEnable := "Активен"
 		if !address.Enabled {
 			isEnable = "Не активен"
 		}
 
 		if !isAll {
-			table = append(table, fmt.Sprintf("|%s|%s|%s|", address.IP, address.Name, isEnable))
+			table = append(table, fmt.Sprintf("|%d|%s|%s|%s|", i+1, address.IP, address.Name, isEnable))
 		} else {
 			start := time.Date(0, 1, 1, 0, int(address.PeriodStart.Minutes()), 0, 0, time.UTC)
 			end := time.Date(0, 1, 1, 0, int(address.PeriodEnd.Minutes()), 0, 0, time.UTC)
 			period := fmt.Sprintf("%s-%s", start.Format("15:04"), end.Format("15:04"))
-			table = append(table, fmt.Sprintf("|%s|%s|%d|%d|%s|%d|%d|%d|%s|",
-				address.IP, address.Name, address.MaxRTT.Milliseconds(), address.NotificationCount, period, address.Interval.Milliseconds(),
+			table = append(table, fmt.Sprintf("|%d|%s|%s|%d|%d|%s|%d|%d|%d|%s|",
+				i+1, address.IP, address.Name, address.MaxRTT.Milliseconds(), address.NotificationCount, period, address.Interval.Milliseconds(),
 				address.Timeout.Milliseconds(), address.Count, isEnable,
 			))
 		}
