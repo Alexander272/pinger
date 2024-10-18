@@ -13,7 +13,6 @@ require (
 	github.com/lib/pq v1.10.4
 	github.com/mattermost/mattermost-server/v6 v6.7.2
 	github.com/prometheus-community/pro-bing v0.4.1
-	github.com/subosito/gotenv v1.2.0
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 )
 
