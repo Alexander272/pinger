@@ -6,23 +6,26 @@ import (
 	"os"
 	"time"
 
+	"github.com/Alexander272/Pinger/pkg/mattermost"
 	"github.com/go-co-op/gocron/v2"
 )
 
 type SchedulerService struct {
-	cron gocron.Scheduler
-	ping Ping
+	cron   gocron.Scheduler
+	ping   Ping
+	client *mattermost.Client
 }
 
-func NewSchedulerService(ping Ping) *SchedulerService {
+func NewSchedulerService(ping Ping, client *mattermost.Client) *SchedulerService {
 	cron, err := gocron.NewScheduler()
 	if err != nil {
 		log.Fatalf("failed to create new scheduler. error: %s", err.Error())
 	}
 
 	return &SchedulerService{
-		cron: cron,
-		ping: ping,
+		cron:   cron,
+		ping:   ping,
+		client: client,
 	}
 }
 
@@ -72,4 +75,11 @@ func (s *SchedulerService) Stop() error {
 
 func (s *SchedulerService) job(hostIP string) {
 	s.ping.CheckPing(hostIP)
+
+	if !s.client.IsConnected() {
+		ok := s.client.Reconnect()
+		if ok {
+			s.client.Socket.Listen()
+		}
+	}
 }

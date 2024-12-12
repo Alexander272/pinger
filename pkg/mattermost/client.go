@@ -14,8 +14,8 @@ type Config struct {
 type Client struct {
 	Http   *model.Client4
 	Socket *model.WebSocketClient
-	// apiUrl    string
-	// token     string
+	apiUrl string
+	token  string
 	// eventChan chan Event
 }
 
@@ -33,26 +33,35 @@ func NewMattermostClient(conf Config) *Client {
 	return &Client{
 		Http:   httpClient,
 		Socket: socketClient,
-		// apiUrl:    conf.ServerLink,
-		// token:     conf.Token,
+		apiUrl: conf.ServerLink,
+		token:  conf.Token,
 		// eventChan: make(chan Event, 10),
 	}
 }
 
-//TODO подумать может действительно вынести подключение по websocket в функцию
-// func (m *Client) Connect() bool {
-// 	socket, err := model.NewWebSocketClient("wss://"+m.apiUrl, m.token)
-// 	if err != nil {
-// 		log.Printf("[!] Error connecting to the Mattermost WS: %s\n", err.Error())
-// 		return false
-// 	}
-// 	m.Socket = socket
-// 	m.Socket.Listen()
-// 	log.Println("[+] Mattermost Websocket connection established")
+// TODO подумать может действительно вынести подключение по websocket в функцию
+func (m *Client) Connect() bool {
+	socket, err := model.NewWebSocketClient("wss://"+m.apiUrl, m.token)
+	if err != nil {
+		log.Printf("[!] Error connecting to the Mattermost WS: %s\n", err.Error())
+		return false
+	}
+	m.Socket = socket
+	m.Socket.Listen()
+	log.Println("[+] Mattermost Websocket connection established")
 
-// 	return true
-// }
+	return true
+}
 
-// func (m *Client) Reconnect() bool {
-// 	return m.Connect()
-// }
+func (m *Client) Reconnect() bool {
+	log.Println("[!] Reconnecting to the Mattermost WS")
+	return m.Connect()
+}
+
+func (m *Client) IsConnected() bool {
+	if m.Socket.ListenError != nil {
+		log.Printf("[!] Error: Lost connect to the Mattermost WS: %s\n", m.Socket.ListenError.Error())
+		return false
+	}
+	return true
+}

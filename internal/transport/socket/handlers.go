@@ -37,6 +37,8 @@ func (h *Handler) Listen() {
 	logger.Info("listen socket")
 	h.socket.Listen()
 
+	// logger.Debug("socket is listening", logger.AnyAttr("error", h.socket.ListenError))
+
 	for event := range h.socket.EventChannel {
 		// Launch new goroutine for handling the actual event.
 		// If required, you can limit the number of events beng processed at a time.

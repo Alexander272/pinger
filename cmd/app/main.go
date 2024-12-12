@@ -62,7 +62,7 @@ func main() {
 
 	servicesDeps := &services.Deps{
 		Repo:      repos,
-		Client:    mostClient.Http,
+		Client:    mostClient,
 		ChannelID: conf.Bot.ChannelId,
 	}
 	services := services.NewServices(servicesDeps)
