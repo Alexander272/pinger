@@ -22,6 +22,7 @@ func NewStatisticService(repo repo.Statistic) *StatisticService {
 type Statistic interface {
 	Get(ctx context.Context, req *models.GetStatisticDTO) ([]*models.Statistic, error)
 	GetByIP(ctx context.Context, req *models.GetStatisticByIPDTO) ([]*models.Statistic, error)
+	GetUnavailable(ctx context.Context, req *models.GetUnavailableDTO) ([]*models.Statistic, error)
 	Create(ctx context.Context, dto *models.StatisticDTO) error
 	Update(ctx context.Context, dto *models.StatisticDTO) error
 }
@@ -38,6 +39,14 @@ func (s *StatisticService) GetByIP(ctx context.Context, req *models.GetStatistic
 	data, err := s.repo.GetByIP(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get statistic by ip. error: %w", err)
+	}
+	return data, nil
+}
+
+func (s *StatisticService) GetUnavailable(ctx context.Context, req *models.GetUnavailableDTO) ([]*models.Statistic, error) {
+	data, err := s.repo.GetUnavailable(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unavailable ip. error: %w", err)
 	}
 	return data, nil
 }

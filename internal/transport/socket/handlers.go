@@ -84,10 +84,11 @@ func (h *Handler) handleEvent(event *model.WebSocketEvent) {
 		{"^list|^список", h.services.Message.List},
 		{"^add|^добавить", h.services.Message.Create},
 		{"^update|^обновить", h.services.Message.Update},
-		{"^disable|^отключить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, false) }},
-		{"^enable|^включить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, true) }},
-		{"^delete|^удалить", h.services.Message.Delete},
+		{"^dis|^отключить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, false) }},
+		{"^en|^включить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, true) }},
+		{"^del|^удалить", h.services.Message.Delete},
 		{"^stats|^statistics|^стат", h.services.Message.Statistics},
+		{"^unavailable|^недоступные", h.services.Message.Unavailable},
 		{"help|man|помощь|мануал", h.services.Information.Help},
 	}
 

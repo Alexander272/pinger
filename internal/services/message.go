@@ -42,6 +42,7 @@ type Message interface {
 	Delete(post *models.Post) error
 	ToggleActive(post *models.Post, isEnable bool) error
 	Statistics(post *models.Post) error
+	Unavailable(post *models.Post) error
 }
 
 func (s *MessageService) List(post *models.Post) error {
@@ -337,6 +338,7 @@ func (s *MessageService) Statistics(post *models.Post) error {
 		isFull = true
 	}
 
+	format := "Mon 2 Jan 2006 15:04:05"
 	for i, d := range data {
 		hours := ""
 		if d.Time.Hours() > 0 {
@@ -346,9 +348,32 @@ func (s *MessageService) Statistics(post *models.Post) error {
 			fmt.Sprintf("%s%2dм. %02dс.", hours, int(d.Time.Minutes())%60, int(d.Time.Seconds())%60),
 		)
 		if isFull {
-			format := "Mon 2 Jan 2006 15:04:05"
 			row += fmt.Sprintf("%s|%s|", monday.Format(d.TimeStart, format, monday.LocaleRuRU), monday.Format(d.TimeEnd, format, monday.LocaleRuRU))
 		}
+		table = append(table, row)
+	}
+
+	s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: strings.Join(table, "\n")})
+	return nil
+}
+
+func (s *MessageService) Unavailable(post *models.Post) error {
+	logger.Info("unavailable ip", logger.StringAttr("message", post.Message))
+
+	data, err := s.stats.GetUnavailable(context.Background(), &models.GetUnavailableDTO{})
+	if err != nil {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nПри получении статистики произошла ошибка"})
+		logger.Error("failed to get statistic.", logger.ErrAttr(err))
+		return err
+	}
+
+	table := []string{
+		"| № | IP-адрес | Название | Не отвечает с |",
+		"|:--|:--|:--|:--|",
+	}
+	format := "Mon 2 Jan 2006 15:04:05"
+	for i, d := range data {
+		row := fmt.Sprintf("|%d|%s|%s|%s|", i+1, d.IP, d.Name, monday.Format(d.TimeStart, format, monday.LocaleRuRU))
 		table = append(table, row)
 	}
 

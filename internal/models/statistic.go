@@ -23,6 +23,8 @@ type GetStatisticByIPDTO struct {
 	PeriodEnd   time.Time `json:"periodEnd" db:"period_end"`
 }
 
+type GetUnavailableDTO struct{}
+
 type StatisticDTO struct {
 	ID        string    `json:"id" db:"id"`
 	IP        string    `json:"ip" db:"ip"`

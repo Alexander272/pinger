@@ -103,9 +103,14 @@ func (s *InformationService) Help(post *models.Post) error {
 		"```",
 		"Пример:",
 		"```",
-		"стат -p \"01.12-31.12\"",
+		"стат -p \"01.11-1.12\"",
 		"stats 8.8.8.8",
 		"```",
+	}
+	unavailable := []string{
+		"##### Список недоступных IP-адресов",
+		"`unavailable` или `недоступные`",
+		"Выводит список недоступных в данный момент IP-адресов.",
 	}
 	about := []string{
 		"##### Информация о боте",
@@ -125,6 +130,7 @@ func (s *InformationService) Help(post *models.Post) error {
 		strings.Join(enable, "\n"),
 		strings.Join(delete, "\n"),
 		strings.Join(stats, "\n"),
+		strings.Join(unavailable, "\n"),
 		strings.Join(about, "\n"),
 		// strings.Join(restart, "\n"),
 	}

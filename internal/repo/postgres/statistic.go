@@ -23,6 +23,7 @@ func NewStatisticRepo(db *sqlx.DB) *StatisticRepo {
 type Statistic interface {
 	Get(ctx context.Context, req *models.GetStatisticDTO) ([]*models.Statistic, error)
 	GetByIP(ctx context.Context, req *models.GetStatisticByIPDTO) ([]*models.Statistic, error)
+	GetUnavailable(ctx context.Context, req *models.GetUnavailableDTO) ([]*models.Statistic, error)
 	GetLast(ctx context.Context, req *models.GetStatisticByIPDTO) (*models.Statistic, error)
 	Create(ctx context.Context, dto *models.StatisticDTO) error
 	Update(ctx context.Context, dto *models.StatisticDTO) error
@@ -66,6 +67,19 @@ func (r *StatisticRepo) GetByIP(ctx context.Context, req *models.GetStatisticByI
 		data[i].Time = data[i].Time * time.Second
 	}
 
+	return data, nil
+}
+
+func (r *StatisticRepo) GetUnavailable(ctx context.Context, req *models.GetUnavailableDTO) ([]*models.Statistic, error) {
+	query := fmt.Sprintf(`SELECT id, ip, name, time_start FROM %s WHERE time_end IS NULL ORDER BY time_start`,
+		StatisticTable,
+	)
+	data := []*models.Statistic{}
+
+	err := r.db.SelectContext(ctx, &data, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query. error: %w", err)
+	}
 	return data, nil
 }
 
