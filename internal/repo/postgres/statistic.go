@@ -32,7 +32,7 @@ type Statistic interface {
 func (r *StatisticRepo) Get(ctx context.Context, req *models.GetStatisticDTO) ([]*models.Statistic, error) {
 	// по умолчанию я хочу получать суммарное количество времени за месяц по каждому IP
 	// но думаю, нужно еще предусмотреть возможность указания периода
-	query := fmt.Sprintf(`SELECT ip, name, SUM(extract (epoch from time_end - time_start)) AS time FROM %s 
+	query := fmt.Sprintf(`SELECT ip, name, ROUND(SUM(extract (epoch from time_end - time_start))) AS time FROM %s 
 		WHERE time_end IS NOT NULL AND time_start >= $1 AND time_start <= $2 GROUP BY ip, name ORDER BY ip`,
 		StatisticTable,
 	)
@@ -52,7 +52,7 @@ func (r *StatisticRepo) Get(ctx context.Context, req *models.GetStatisticDTO) ([
 
 func (r *StatisticRepo) GetByIP(ctx context.Context, req *models.GetStatisticByIPDTO) ([]*models.Statistic, error) {
 	// а еще вывести все даты простоя по одному IP, по умолчанию за месяц
-	query := fmt.Sprintf(`SELECT id, ip, name, (extract (epoch from time_end - time_start)) AS time, time_start, time_end FROM %s 
+	query := fmt.Sprintf(`SELECT id, ip, name, ROUND(extract (epoch from time_end - time_start)) AS time, time_start, time_end FROM %s 
 		WHERE ip = $1 AND time_end IS NOT NULL AND time_start >= $2 AND time_start <= $3 ORDER BY time_start`,
 		StatisticTable,
 	)
