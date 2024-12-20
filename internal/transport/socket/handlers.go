@@ -87,6 +87,7 @@ func (h *Handler) handleEvent(event *model.WebSocketEvent) {
 		{"^disable|^отключить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, false) }},
 		{"^enable|^включить", func(p *models.Post) error { return h.services.Message.ToggleActive(p, true) }},
 		{"^delete|^удалить", h.services.Message.Delete},
+		{"^stats|^statistics|^стат", h.services.Message.Statistics},
 		{"help|man|помощь|мануал", h.services.Information.Help},
 	}
 

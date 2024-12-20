@@ -8,13 +8,18 @@ import (
 type Address interface {
 	postgres.Address
 }
+type Statistic interface {
+	postgres.Statistic
+}
 
 type Repository struct {
 	Address
+	Statistic
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		Address: postgres.NewAddressRepo(db),
+		Address:   postgres.NewAddressRepo(db),
+		Statistic: postgres.NewStatisticRepo(db),
 	}
 }

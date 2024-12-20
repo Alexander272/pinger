@@ -14,16 +14,24 @@ import (
 
 type PingService struct {
 	addresses Address
+	stats     Statistic
 	post      Post
 
 	failed *models.Counters
 	long   *models.Counters
 }
 
-func NewPingService(addresses Address, post Post) *PingService {
+type PingDeps struct {
+	Address Address
+	Stats   Statistic
+	Post    Post
+}
+
+func NewPingService(deps *PingDeps) *PingService {
 	return &PingService{
-		addresses: addresses,
-		post:      post,
+		addresses: deps.Address,
+		stats:     deps.Stats,
+		post:      deps.Post,
 
 		failed: models.NewCounters(),
 		long:   models.NewCounters(),
@@ -31,11 +39,11 @@ func NewPingService(addresses Address, post Post) *PingService {
 }
 
 type Ping interface {
-	Ping(addr *models.Address) (*models.Statistic, error)
+	Ping(addr *models.Address) (*models.PingStatistic, error)
 	CheckPing(hostIP string)
 }
 
-func (s *PingService) Ping(addr *models.Address) (*models.Statistic, error) {
+func (s *PingService) Ping(addr *models.Address) (*models.PingStatistic, error) {
 	logger.Debug("ping", logger.AnyAttr("addr", addr))
 
 	pinger, err := probing.NewPinger(addr.IP)
@@ -55,7 +63,7 @@ func (s *PingService) Ping(addr *models.Address) (*models.Statistic, error) {
 	}
 
 	stats := pinger.Statistics()
-	statistic := &models.Statistic{
+	statistic := &models.PingStatistic{
 		IP:              addr.IP,
 		IsFailed:        stats.PacketLoss > 50,
 		MaxNotification: addr.NotificationCount,
@@ -93,6 +101,17 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 
 	if stats.PacketLoss > 50 {
 		count, ok := s.failed.Load(addr.IP)
+		if count == 0 {
+			stats := &models.StatisticDTO{
+				IP:        addr.IP,
+				Name:      addr.Name,
+				TimeStart: time.Now(),
+			}
+			if err := s.stats.Create(context.Background(), stats); err != nil {
+				error_bot.Send(&gin.Context{}, err.Error(), stats)
+			}
+		}
+
 		if addr.NotificationCount == 0 || !ok || count < addr.NotificationCount {
 			s.failed.Inc(addr.IP)
 
@@ -110,6 +129,11 @@ func (s *PingService) SendPing(addr *models.Address, hostIP string) {
 		message := fmt.Sprintf("Пинг по адресу **%s (%s)** прошел.", addr.IP, addr.Name)
 		s.post.Send(&models.Post{Message: message})
 		s.failed.Store(addr.IP, 0)
+
+		stats := &models.StatisticDTO{IP: addr.IP, TimeEnd: time.Now()}
+		if err := s.stats.Update(context.Background(), stats); err != nil {
+			error_bot.Send(&gin.Context{}, err.Error(), stats)
+		}
 	}
 
 	if addr.MaxRTT == 0 {

@@ -188,7 +188,7 @@ func (r *AddressRepo) Create(ctx context.Context, dto *models.AddressDTO) error 
 
 	_, err := r.db.NamedExecContext(ctx, query, data)
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value") {
+		if strings.Contains(err.Error(), "duplicate key value") || strings.Contains(err.Error(), "повторяющееся значение ключа") {
 			return models.ErrExist
 		}
 		return fmt.Errorf("failed to execute query. error: %w", err)

@@ -8,6 +8,7 @@ import (
 type Services struct {
 	Post
 	Address
+	Statistic
 	Ping
 	Information
 	Message
@@ -23,14 +24,16 @@ type Deps struct {
 func NewServices(deps *Deps) *Services {
 	post := NewPostService(deps.Client.Http, deps.ChannelID)
 	addresses := NewAddressService(deps.Repo.Address)
-	ping := NewPingService(addresses, post)
+	statistic := NewStatisticService(deps.Repo.Statistic)
+	ping := NewPingService(&PingDeps{Address: addresses, Stats: statistic, Post: post})
 	information := NewInformationService(post)
-	message := NewMessageService(addresses, post)
+	message := NewMessageService(&MessageDeps{Address: addresses, Stats: statistic, Post: post})
 	scheduler := NewSchedulerService(ping, deps.Client)
 
 	return &Services{
 		Post:        post,
 		Address:     addresses,
+		Statistic:   statistic,
 		Ping:        ping,
 		Information: information,
 		Message:     message,

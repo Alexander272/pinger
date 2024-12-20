@@ -31,7 +31,7 @@ type AddressDTO struct {
 	Enabled           *bool          `json:"enabled" db:"enabled"`
 }
 
-type Statistic struct {
+type PingStatistic struct {
 	IP              string `json:"ip"`
 	IsLong          bool   `json:"isLong"`
 	IsFailed        bool   `json:"isFailed"`

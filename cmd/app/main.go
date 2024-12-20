@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Alexander272/Pinger/internal/config"
+	"github.com/Alexander272/Pinger/internal/migrate"
 	"github.com/Alexander272/Pinger/internal/repo"
 	"github.com/Alexander272/Pinger/internal/services"
 	"github.com/Alexander272/Pinger/internal/transport/socket"
@@ -14,12 +15,13 @@ import (
 	"github.com/Alexander272/Pinger/pkg/logger"
 	"github.com/Alexander272/Pinger/pkg/mattermost"
 	_ "github.com/lib/pq"
+	"github.com/subosito/gotenv"
 )
 
 func main() {
-	// if err := gotenv.Load(".env"); err != nil {
-	// 	log.Fatalf("failed to load env variables. error: %s", err.Error())
-	// }
+	if err := gotenv.Load(".env"); err != nil {
+		log.Fatalf("failed to load env variables. error: %s", err.Error())
+	}
 
 	conf, err := config.Init("configs/config.yaml")
 	if err != nil {
@@ -38,6 +40,10 @@ func main() {
 	})
 	if err != nil {
 		log.Fatalf("failed to initialize db: %s", err.Error())
+	}
+
+	if err := migrate.Migrate(db.DB); err != nil {
+		log.Fatalf("failed to migrate: %s", err.Error())
 	}
 
 	mattermostConf := mattermost.Config{

@@ -5,24 +5,33 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Alexander272/Pinger/internal/models"
 	"github.com/Alexander272/Pinger/pkg/logger"
+	"github.com/goodsign/monday"
+	"github.com/google/shlex"
 )
 
 type MessageService struct {
 	addresses Address
+	stats     Statistic
 	post      Post
 }
 
-func NewMessageService(addresses Address, post Post) *MessageService {
+type MessageDeps struct {
+	Address Address
+	Stats   Statistic
+	Post    Post
+}
+
+func NewMessageService(deps *MessageDeps) *MessageService {
 	return &MessageService{
-		addresses: addresses,
-		post:      post,
+		addresses: deps.Address,
+		stats:     deps.Stats,
+		post:      deps.Post,
 	}
 }
 
@@ -32,6 +41,7 @@ type Message interface {
 	Update(post *models.Post) error
 	Delete(post *models.Post) error
 	ToggleActive(post *models.Post, isEnable bool) error
+	Statistics(post *models.Post) error
 }
 
 func (s *MessageService) List(post *models.Post) error {
@@ -220,12 +230,145 @@ func (s *MessageService) Delete(post *models.Post) error {
 	return nil
 }
 
+func (s *MessageService) Statistics(post *models.Post) error {
+	logger.Info("statistics ip", logger.StringAttr("message", post.Message))
+
+	parts, err := shlex.Split(post.Message)
+	if err != nil {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду."})
+		logger.Error("failed to split message.", logger.ErrAttr(err))
+		return fmt.Errorf("failed to split message. error: %w", err)
+	}
+
+	args := []string{"", ""}
+	for i := 1; i < len(parts); i++ {
+		_, ok := strings.CutPrefix(parts[i], "-p")
+		if !ok {
+			args[0] = parts[i]
+			continue
+		}
+
+		if strings.Contains(parts[i], "=") {
+			tmp := strings.Split(parts[i], "=")
+			args[1] = tmp[1]
+			continue
+		}
+
+		args[1] = parts[i+1]
+		i++
+	}
+
+	if args[0] != "" && net.ParseIP(args[0]) == nil {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду. Некорректный IP адрес."})
+		return nil
+	}
+
+	now := time.Now()
+	period := &models.GetStatisticDTO{
+		PeriodStart: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()),
+		PeriodEnd:   time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()),
+	}
+	if args[1] != "" {
+		parts := strings.Split(args[1], "-")
+		if len(parts) != 2 {
+			s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду. Некорректный период."})
+			return fmt.Errorf("period is not correct")
+		}
+
+		start := []int{now.Day(), int(now.Month()), now.Year()}
+		startParts := strings.Split(parts[0], ".")
+		for i, p := range startParts {
+			tmp, err := strconv.Atoi(p)
+			if err != nil {
+				s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду. Некорректный период."})
+				return err
+			}
+			if tmp != 0 {
+				start[i] = tmp
+			}
+		}
+
+		end := []int{now.Day(), int(now.Month()), now.Year()}
+		endParts := strings.Split(parts[1], ".")
+		for i, p := range endParts {
+			end[i], err = strconv.Atoi(p)
+			if err != nil {
+				s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду. Некорректный период."})
+				return err
+			}
+		}
+		logger.Debug("stats", logger.AnyAttr("start", start))
+
+		//TODO не работает
+		period.PeriodStart = time.Date(start[2], time.Month(start[1]), start[0], 0, 0, 0, 0, now.Location())
+		period.PeriodEnd = time.Date(end[2], time.Month(end[1]), end[0], 0, 0, 0, 0, now.Location())
+	}
+
+	logger.Debug("stats", logger.AnyAttr("period", period))
+
+	var data []*models.Statistic
+	if args[0] != "" {
+		data, err = s.stats.GetByIP(context.Background(), &models.GetStatisticByIPDTO{
+			IP:          args[0],
+			PeriodStart: period.PeriodStart,
+			PeriodEnd:   period.PeriodEnd,
+		})
+	} else {
+		data, err = s.stats.Get(context.Background(), period)
+	}
+	if err != nil {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nПри получении статистики произошла ошибка"})
+		logger.Error("failed to get statistic.", logger.ErrAttr(err))
+		return err
+	}
+	if len(data) == 0 {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "Ничего не найдено"})
+		return nil
+	}
+
+	table := []string{
+		"| № | IP-адрес | Название | Не отвечал |",
+		"|:--|:--|:--|:--|",
+	}
+	isFull := false
+	if !data[0].TimeStart.IsZero() {
+		table[0] += " С | По |"
+		table[1] += ":--|:--|"
+		isFull = true
+	}
+
+	for i, d := range data {
+		hours := ""
+		if d.Time.Hours() > 0 {
+			hours = fmt.Sprintf("%dч. ", int(d.Time.Hours()))
+		}
+		row := fmt.Sprintf("|%d|%s|%s|%s|", i+1, d.IP, d.Name,
+			fmt.Sprintf("%s%2dм. %02dс.", hours, int(d.Time.Minutes())%60, int(d.Time.Seconds())%60),
+		)
+		if isFull {
+			format := "Mon 2 Jan 2006 15:04:05"
+			row += fmt.Sprintf("%s|%s|", monday.Format(d.TimeStart, format, monday.LocaleRuRU), monday.Format(d.TimeEnd, format, monday.LocaleRuRU))
+		}
+		table = append(table, row)
+	}
+
+	s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: strings.Join(table, "\n")})
+	return nil
+}
+
 func (s *MessageService) decode(post *models.Post) *models.AddressDTO {
 	address := &models.AddressDTO{}
 
 	// parts := strings.Split(message, " ")
-	pattern := regexp.MustCompile(`\"[^\"]+\"|\S+`)
-	parts := pattern.FindAllString(post.Message, -1)
+	// pattern := regexp.MustCompile(`\"[^\"]+\"|\S+`)
+	// parts := pattern.FindAllString(post.Message, -1)
+	parts, err := shlex.Split(post.Message)
+	if err != nil {
+		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду."})
+		logger.Error("failed to split message.", logger.ErrAttr(err))
+		return nil
+	}
+
 	if net.ParseIP(parts[1]) == nil {
 		s.post.Send(&models.Post{ChannelID: post.ChannelID, Message: "#### Ошибка.\nНе удалось распознать команду. Некорректный IP адрес."})
 		return nil
